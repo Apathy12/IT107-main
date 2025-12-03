@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Body Mass Index | BMI Calculator</title>
+  <style>
+    /*das*/
+    body {
+      background: url("fitness bg.jpg") no-repeat center center/cover;
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+
+  <div class="backdrop-blur-lg bg-white/20 shadow-xl rounded-2xl p-8 w-full max-w-md text-white">
+    <h1 class="text-3xl font-bold mb-6 text-center text-cyan-400">BMI Calculator</h1>
+
+    <form id="bmiForm" class="space-y-4">
+      <div>
+        <label for="Height" class="block font-medium">Height in CM:</label>
+        <input type="text" id="Height" required
+          class="mt-1 block w-full rounded-lg p-3 bg-white/20 placeholder-gray-200 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400">
+      </div>
+
+      <div>
+        <label for="Weight" class="block font-medium">Weight in KG:</label>
+        <input type="text" id="Weight" required
+          class="mt-1 block w-full rounded-lg p-3 bg-white/20 placeholder-gray-200 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400">
+      </div>
+
+      <button type="submit"
+        class="w-full bg-cyan-500 text-white py-3 rounded-lg hover:bg-cyan-600 transition font-bold">
+        Calculate
+      </button>
+    </form>
+
+    <div id="result" class="mt-4 text-lg font-semibold text-center"></div>
+
+    <div class="mt-6">
+      <div id="history" class="text-sm"></div>
+      <div class="flex gap-2 mt-3">
+        <button onclick="resetHistory()" 
+          class="flex-1 bg-yellow-500 text-white py-2 rounded-lg hover:bg-yellow-600 transition font-bold">
+          Reset History
+        </button>
+      </div>
+      
+    </div>
+
+    <!-- BMI Guide -->
+    <div class="mt-6">
+     <h2 class="font-bold text-lg text-cyan-300">BMI Weight Guide</h2>
+     <ul class="list-disc pl-5 text-gray-200">
+        <li>Underweight = Less than 18.5</li>
+        <li>Normal Range = 18.5 – 24.9</li>
+        <li>Overweight = 25 – 29.9</li>
+        <li>Obesity (Class 1) = 30 – 34.9</li>
+        <li>Obesity (Class 2) = 35 – 39.9</li>
+        <li>Obesity (Class 3 / Severe) = 40 and above</li>
+     </ul>
+  </div>
+
+
+    <!-- Logout -->
+    <button onclick="logout()" 
+      class="w-full mt-6 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition font-bold">
+      Logout
+    </button>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="script.js"></script>
+  <script>
+    // Load config if available, otherwise use default
+    const API_URL = (typeof CONFIG !== 'undefined' && CONFIG.API_URL) ? CONFIG.API_URL : 'http://localhost:3000';
+    const token = localStorage.getItem('token');
+
+    // Check authentication
+    if (!token || localStorage.getItem("loggedIn") !== "true") {
+      window.location.href = "login.html";
+    }
+
+    // Load history on page load
+    window.addEventListener('DOMContentLoaded', async () => {
+      await loadHistory();
+    });
+
+    async function loadHistory() {
+      try {
+        const res = await fetch(`${API_URL}/api/bmi/history`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          displayHistory(data.records);
+        }
+      } catch (error) {
+        console.error('Error loading history:', error);
+      }
+    }
+
+    function displayHistory(records) {
+      const historyDiv = document.getElementById("history");
+      let output = "<h2 class='font-bold text-lg text-cyan-300 mb-2'>Your BMI History</h2>";
+
+      if (!records || records.length === 0) {
+        historyDiv.innerHTML = output + "<p class='text-gray-300'>No records yet.</p>";
+        return;
+      }
+
+      output += "<ul class='space-y-1'>";
+      records.forEach((record) => {
+        const date = new Date(record.recorded_at).toLocaleString();
+        output += `<li class='text-gray-200'>${date} → BMI: ${record.bmi.toFixed(2)} (H: ${record.height}cm, W: ${record.weight}kg)</li>`;
+      });
+      output += "</ul>";
+      historyDiv.innerHTML = output;
+    }
+
+    async function resetHistory(){
+      if (!confirm('Are you sure you want to clear all BMI history?')) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/api/bmi/history`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (res.ok) {
+          document.getElementById("history").innerHTML = "<h2 class='font-bold text-lg text-cyan-300 mb-2'>Your BMI History</h2><p class='text-gray-300'>History cleared.</p>";
+        } else {
+          alert('Failed to clear history');
+        }
+      } catch (error) {
+        console.error('Error clearing history:', error);
+        alert('Error clearing history');
+      }
+    }
+
+    async function logout(){
+      localStorage.removeItem("loggedIn");
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+
+      // Prefer the login page when available, otherwise fallback to signup
+      try {
+        const res = await fetch('login.html', { method: 'HEAD', cache: 'no-store' });
+        if (res.ok) {
+          window.location.href = 'login.html';
+          return;
+        }
+      } catch (_) {
+        console.warn('login.html not reachable, falling back to signup.html');
+      }
+
+      window.location.href = 'signup.html';
+    }
+  </script>
+</body>
+</html>
